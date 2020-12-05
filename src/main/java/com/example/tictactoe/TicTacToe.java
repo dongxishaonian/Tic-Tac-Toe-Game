@@ -117,7 +117,7 @@ public class TicTacToe {
 
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < 3; j++) {
-                    Character character = ticTacToe.chess_board[i][j];
+                    Character character = ticTacToe.chess_board[j][i];
                     if (character.equals('\0')) {
                         System.out.print("🐻" + " ");
                     } else {
