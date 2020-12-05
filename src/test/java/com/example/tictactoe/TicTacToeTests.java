@@ -1,19 +1,26 @@
 package com.example.tictactoe;
 
-import org.junit.jupiter.api.BeforeEach;
+import com.example.tictactoe.mongo.TicTacToeCollection;
+import com.example.tictactoe.mongo.TicTacToeDO;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 
+@ExtendWith(MockitoExtension.class)
 public class TicTacToeTests {
+    @Mock
+    private TicTacToeCollection ticTacToeCollection;
+    @InjectMocks
     private TicTacToe ticTacToe;
 
-    @BeforeEach
-    public void setUp() {
-        ticTacToe = new TicTacToe();
-    }
 
     //需求一：考虑棋子放在哪些地方非法
     //情况一：棋子放在x轴以外时非法，抛出异常
@@ -114,4 +121,76 @@ public class TicTacToeTests {
         String result = ticTacToe.put(1, 2);//O
         assertEquals(result, "平局");
     }
+
+    //需求四：持久化棋盘
+    //情况一：每一步都持久化保存
+    @Test
+    public void 落子后保存棋局成功() {
+        ticTacToe.put(1, 1);
+        verify(ticTacToeCollection, times(1)).saveTicTacToe(any(TicTacToeDO.class));
+    }
+
+    //情况二：出久化失败
+    @Test
+    public void 落子后保存棋局失败() {
+        when(ticTacToeCollection.saveTicTacToe(any(TicTacToeDO.class))).thenThrow(new RuntimeException());
+        assertThrows(RuntimeException.class, () -> ticTacToe.put(1, 1));
+    }
+
+    //需求四:游戏结束，删除数据
+    //情况一：删除成功
+    @Test
+    public void 游戏结束后删除数据() {
+        ticTacToe.put(0, 0);//O
+        ticTacToe.put(2, 0);//X
+        ticTacToe.put(1, 1);//O
+        ticTacToe.put(1, 0);//X
+        ticTacToe.put(2, 2);//O
+        verify(ticTacToeCollection, times(1)).drop();
+    }
+
+    //情况一：删除失败
+    @Test
+    public void 游戏结束后删除数据失败() {
+        when(ticTacToeCollection.drop()).thenThrow(new RuntimeException());
+        ticTacToe.put(0, 0);//O
+        ticTacToe.put(2, 0);//X
+        ticTacToe.put(1, 1);//O
+        ticTacToe.put(1, 0);//X
+        assertThrows(RuntimeException.class, () -> ticTacToe.put(2, 2));
+    }
+
+    //需求五：初始化游戏
+    @Test
+    public void 初始化游戏成功() {
+        TicTacToeDO ticTacToeDO = new TicTacToeDO();
+        ticTacToeDO.setCurrentPlayer('O');
+        ticTacToeDO.setX(0);
+        ticTacToeDO.setY(0);
+        ticTacToeDO.setTurn(1);
+        Character[][] chess_board = new Character[][]{{'O', '\0', '\0'}, {'\0', '\0', '\0'}, {'\0', '\0', '\0'}};
+        ticTacToeDO.setChessBoard(chess_board);
+        when(ticTacToeCollection.read()).thenReturn(ticTacToeDO);
+
+        ticTacToe.initChessBoard();
+        verify(ticTacToeCollection, times(1)).read();
+        assertEquals(chess_board, ticTacToe.getChess_board());
+        assertEquals(ticTacToeDO.getTurn(), ticTacToe.getTurn());
+        assertEquals(ticTacToeDO.getCurrentPlayer(), ticTacToe.getCurrentPlayer());
+    }
+
+    @Test
+    public void 无数据无需初始化() throws JsonProcessingException {
+        when(ticTacToeCollection.read()).thenReturn(null);
+
+        ticTacToe.initChessBoard();
+        verify(ticTacToeCollection, times(1)).read();
+        Character[][] chess_board = new Character[][]{{'\0', '\0', '\0'}, {'\0', '\0', '\0'}, {'\0', '\0', '\0'}};
+        ObjectMapper objectMapper = new ObjectMapper();
+        System.out.println(objectMapper.writeValueAsString(chess_board));
+        assertEquals(objectMapper.writeValueAsString(chess_board), objectMapper.writeValueAsString(ticTacToe.getChess_board()));
+        assertEquals(0, ticTacToe.getTurn());
+        assertEquals('\0',ticTacToe.getCurrentPlayer());
+    }
+
 }

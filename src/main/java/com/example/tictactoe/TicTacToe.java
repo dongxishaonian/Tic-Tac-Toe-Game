@@ -1,26 +1,56 @@
 package com.example.tictactoe;
 
+import com.example.tictactoe.mongo.TicTacToeCollection;
+import com.example.tictactoe.mongo.TicTacToeDO;
+
+import java.net.UnknownHostException;
 import java.util.Scanner;
 
 public class TicTacToe {
-
     private static final char O_PLAYER = 'O';
     private static final char X_PLAYER = 'X';
 
+    private TicTacToeCollection ticTacToeCollection;
+    private int turn;
     private Character currentPlayer = '\0';
     private Character[][] chess_board = new Character[][]{{'\0', '\0', '\0'}, {'\0', '\0', '\0'}, {'\0', '\0', '\0'}};
 
+    public TicTacToe() throws UnknownHostException {
+        this.ticTacToeCollection = new TicTacToeCollection();
+    }
+
+
     public String put(int x, int y) {
         checkLocation(x, y);
-//        try {
-//            checkLocation(x, y);
-//        } catch (RuntimeException e) {
-//            System.out.println(e.getMessage());
-//            return "请重试";
-//        }
         Character play = nextPlayer();
         chess_board[x][y] = play;
-        return getCurrentGameStatus(x, y);
+        String currentGameStatus = getCurrentGameStatus(x, y);
+
+        handlerChessBoardDb(x, y, currentGameStatus);
+
+        return currentGameStatus;
+    }
+
+    private void handlerChessBoardDb(int x, int y, String currentGameStatus) {
+        ticTacToeCollection.saveTicTacToe(new TicTacToeDO()
+                .setChessBoard(chess_board)
+                .setCurrentPlayer(currentPlayer)
+                .setX(x)
+                .setTurn(++turn)
+                .setY(y));
+
+        if (!currentGameStatus.equals("游戏中")) {
+            ticTacToeCollection.drop();
+        }
+    }
+
+    public void initChessBoard() {
+        TicTacToeDO ticTacToeDO = ticTacToeCollection.read();
+        if (ticTacToeDO != null) {
+            this.chess_board = ticTacToeDO.getChessBoard();
+            this.currentPlayer = ticTacToeDO.getCurrentPlayer();
+            this.turn = ticTacToeDO.getTurn();
+        }
     }
 
     private void checkLocation(int x, int y) {
@@ -106,26 +136,54 @@ public class TicTacToe {
         return X_PLAYER;
     }
 
-    public static void main(String[] args) {
+    public TicTacToeCollection getTicTacToeCollection() {
+        return ticTacToeCollection;
+    }
+
+    public TicTacToe setTicTacToeCollection(TicTacToeCollection ticTacToeCollection) {
+        this.ticTacToeCollection = ticTacToeCollection;
+        return this;
+    }
+
+    public int getTurn() {
+        return turn;
+    }
+
+    public TicTacToe setTurn(int turn) {
+        this.turn = turn;
+        return this;
+    }
+
+    public Character getCurrentPlayer() {
+        return currentPlayer;
+    }
+
+    public TicTacToe setCurrentPlayer(Character currentPlayer) {
+        this.currentPlayer = currentPlayer;
+        return this;
+    }
+
+    public Character[][] getChess_board() {
+        return chess_board;
+    }
+
+    public TicTacToe setChess_board(Character[][] chess_board) {
+        this.chess_board = chess_board;
+        return this;
+    }
+
+    public static void main(String[] args) throws UnknownHostException {
         TicTacToe ticTacToe = new TicTacToe();
+        ticTacToe.initChessBoard();
         Scanner input = new Scanner(System.in);
         System.out.println("tictactoe start!");
+        printChessBoard(ticTacToe);
         while (true) {
             String a = input.nextLine();
             String[] str = a.split(",");
             String result = ticTacToe.put(Integer.parseInt(str[0]), Integer.parseInt(str[1]));
 
-            for (int i = 0; i < 3; i++) {
-                for (int j = 0; j < 3; j++) {
-                    Character character = ticTacToe.chess_board[j][i];
-                    if (character.equals('\0')) {
-                        System.out.print("🐻" + " ");
-                    } else {
-                        System.out.print(character + " ");
-                    }
-                }
-                System.out.println();
-            }
+            printChessBoard(ticTacToe);
 
 
             if (!result.equals("游戏中") && !result.equals("请重试")) {
@@ -133,6 +191,20 @@ public class TicTacToe {
                 break;
             }
             System.out.println(result + "继续...");
+        }
+    }
+
+    private static void printChessBoard(TicTacToe ticTacToe) {
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                Character character = ticTacToe.chess_board[j][i];
+                if (character.equals('\0')) {
+                    System.out.print("🐻" + " ");
+                } else {
+                    System.out.print(character + " ");
+                }
+            }
+            System.out.println();
         }
     }
 }
