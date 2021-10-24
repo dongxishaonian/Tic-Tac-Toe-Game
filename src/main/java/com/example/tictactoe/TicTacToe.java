@@ -192,6 +192,8 @@ public class TicTacToe {
             }
             System.out.println(result + "继续...");
         }
+
+        input.close();
     }
 
     private static void printChessBoard(TicTacToe ticTacToe) {
